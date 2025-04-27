@@ -1,0 +1,64 @@
+name: Update working badge
+
+on:
+  schedule:
+    # 20:00 UTC = 7:00 AM AEDT (next morning Sydney)
+    - cron: '0 20 * * 0-4'
+    # 07:00 UTC = 6:00 PM AEDT (same day Sydney)
+    - cron: '0 7 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  update-badge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate and Download Badge
+        run: |
+          mkdir -p badges
+
+          node <<'EOF'
+          const fs = require('fs');
+          const https = require('https');
+          const { URL } = require('url');
+
+          const now = new Date(); // UTC time now
+          const day = now.getUTCDay(); // 0 = Sunday, 6 = Saturday
+          const hour = now.getUTCHours(); // 0-23
+
+          let icon = '🧑‍💻', txt = 'Coding', color = 'pink';
+
+          // Logic based on UTC time
+          if (
+              day === 6 || day === 0 || // Saturday or Sunday
+              (hour >= 7 && hour < 20) // between 7:00 UTC (6PM AEDT) and 20:00 UTC (7AM AEDT next day)
+          ) {
+              icon = '💤';
+              txt = 'Not coding';
+              color = 'orange';
+          }
+
+          const badgeURL = `https://badgen.net/badge/${encodeURIComponent(icon)}/${encodeURIComponent(txt)}?color=${color}`;
+
+          const outFile = fs.createWriteStream('badges/workingBadge.svg');
+
+          https.get(new URL(badgeURL), res => {
+            if (res.statusCode !== 200) {
+              console.error('Failed to download badge:', res.statusCode);
+              process.exit(1);
+            }
+            res.pipe(outFile);
+            outFile.on('finish', () => outFile.close());
+          }).on('error', err => {
+            console.error('Error downloading badge:', err);
+            process.exit(1);
+          });
+          EOF
+
+      - name: Commit and Push badge
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'Update workingBadge.svg (precompiled)'
+          file_pattern: badges/workingBadge.svg
