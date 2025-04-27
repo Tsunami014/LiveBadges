@@ -35,7 +35,7 @@ jobs:
 
           // Logic based on UTC time
           if (
-              day === 6 || day === 0 || // Saturday or Sunday
+              // day === 6 || day === 0 || // Saturday or Sunday
               (hour >= 7 && hour < 20) // between 7:00 UTC (6PM AEDT) and 20:00 UTC (7AM AEDT next day)
           ) {
               icon = '💤';
